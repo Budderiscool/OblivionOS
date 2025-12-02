@@ -1,14 +1,120 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #0c0c0c; font-family: Arial, sans-serif; color: #fff; overflow: hidden; }
-.window { position: absolute; top: 60px; left: 60px; width: 900px; height: 550px; background: #161616; border: 2px solid #333; border-radius: 8px; display: flex; flex-direction: column; resize: both; overflow: hidden; }
-.titlebar { height: 40px; background: #202020; border-bottom: 2px solid #333; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; cursor: move; }
-.tabs { display: flex; background: #141414; border-bottom: 2px solid #222; overflow-x: auto; }
-.tab { padding: 8px 14px; background: #222; border-right: 1px solid #333; cursor: pointer; white-space: nowrap; }
-.tab.active { background: #333; }
-.newtab { padding: 8px 14px; background: #1f1f1f; cursor: pointer; }
-#bookmarkBar { display: flex; gap: 10px; padding: 6px; background: #141414; border-bottom: 2px solid #222; overflow-x: auto; }
-#bookmarkBar div { padding: 6px 12px; background: #222; border-radius: 5px; cursor: pointer; }
-.toolbar { background: #111; padding: 8px; display: flex; gap: 8px; border-bottom: 2px solid #222; }
-.toolbar input { flex: 1; background: #222; color: #fff; padding: 8px; border: none; border-radius: 6px; }
-.toolbar button { background: #333; border: none; padding: 8px 12px; border-radius: 6px; color: #eee; cursor: pointer; }
-iframe { flex: 1; width: 100%; border: none; background: #000; }
+/* General reset */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+
+/* Body background */
+body { background: #0a0a0a; color: #fff; height: 100vh; display: flex; justify-content: center; align-items: center; }
+
+/* Browser window */
+.window {
+  width: 900px;
+  height: 600px;
+  background: #111;
+  border-radius: 15px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 40px rgba(128, 0, 255, 0.5);
+  border: 2px solid #4b0082;
+  position: relative;
+}
+
+/* Titlebar */
+.titlebar {
+  height: 45px;
+  background: linear-gradient(90deg, #4b0082, #8a2be2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 15px;
+  color: #fff;
+  font-weight: bold;
+  border-bottom: 1px solid #5e00aa;
+  border-radius: 15px 15px 0 0;
+}
+
+/* Window controls */
+.window-controls button {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 16px;
+  margin-left: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.window-controls button:hover { color: #ff6fff; }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  background: #1c001c;
+  overflow-x: auto;
+  border-bottom: 2px solid #3c003c;
+}
+.tab {
+  padding: 10px 16px;
+  cursor: pointer;
+  background: #2b002b;
+  border-right: 1px solid #3c003c;
+  border-radius: 10px 10px 0 0;
+  margin-right: 2px;
+  transition: all 0.2s;
+}
+.tab.active { background: #5e00aa; }
+.tab:hover { background: #7b00d9; color: #fff; }
+.newtab { font-weight: bold; background: #2b002b; color: #fff; }
+
+/* Bookmark bar */
+#bookmarkBar {
+  display: flex;
+  gap: 10px;
+  padding: 6px;
+  background: #140014;
+  overflow-x: auto;
+  border-bottom: 1px solid #3c003c;
+}
+#bookmarkBar div {
+  padding: 6px 12px;
+  background: #2b002b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#bookmarkBar div:hover { background: #7b00d9; }
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: #1a001a;
+  border-bottom: 1px solid #3c003c;
+}
+.toolbar input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  background: #2b002b;
+  color: #fff;
+}
+.toolbar input::placeholder { color: #aaa; }
+.btn {
+  padding: 10px 14px;
+  background: #5e00aa;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn:hover { background: #8a2be2; }
+
+/* Iframe */
+iframe {
+  flex: 1;
+  border: none;
+  background: #000;
+  border-radius: 0 0 15px 15px;
+}
