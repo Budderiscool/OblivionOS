@@ -1,5 +1,5 @@
 let currentTab = null, tabs = [], useProxy = false;
-const proxyURL = "https://YOUR-PROJECT-NAME.vercel.app/api/proxy?url=";
+const proxyURL = "https://oblivion-os.vercel.app/api/proxy?url=";
 
 function newTab(url = "about:blank") {
   const id = Date.now();
