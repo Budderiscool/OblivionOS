@@ -1,14 +1,16 @@
-const tabsContainer = document.createElement("div");
-tabsContainer.id = "tabsContainer";
-document.body.insertBefore(tabsContainer, document.getElementById("frame"));
+// References
+const tabsContainer = document.getElementById("tabsContainer");
+const urlInput = document.getElementById("urlInput");
+const goBtn = document.getElementById("goBtn");
+const frame = document.getElementById("frame");
 
+// Tabs data
 let tabs = [];
 let activeTabId = null;
 
-// Function to create a new tab
+// Create a new tab
 function createTab(url = "https://example.com") {
     const tabId = Date.now().toString();
-
     const tabEl = document.createElement("div");
     tabEl.classList.add("tab");
     tabEl.textContent = url;
@@ -19,44 +21,46 @@ function createTab(url = "https://example.com") {
 
     const tab = { id: tabId, url, element: tabEl };
     tabs.push(tab);
-
     switchTab(tabId);
 }
 
-// Function to switch active tab
+// Switch active tab
 function switchTab(tabId) {
     if (activeTabId === tabId) return;
-
     activeTabId = tabId;
-    tabs.forEach(t => t.element.classList.remove("active"));
 
+    tabs.forEach(t => t.element.classList.remove("active"));
     const tab = tabs.find(t => t.id === tabId);
     if (!tab) return;
 
     tab.element.classList.add("active");
-    loadProxy(tab.url);
+
+    // Smooth fade
+    frame.style.opacity = 0;
+    setTimeout(() => {
+        frame.src = `/proxy?url=${encodeURIComponent(tab.url)}`;
+        frame.style.opacity = 1;
+    }, 150);
 }
 
-// Load proxy iframe
-function loadProxy(url) {
-    const frame = document.getElementById("frame");
-    frame.src = `/proxy?url=${encodeURIComponent(url)}`;
-}
-
-// GO button click
-document.getElementById("goBtn").addEventListener("click", () => {
-    const url = document.getElementById("urlInput").value.trim();
+// Go button
+goBtn.addEventListener("click", () => {
+    const url = urlInput.value.trim();
     if (!url) return;
 
-    // Update active tab or create new
     if (activeTabId) {
         const tab = tabs.find(t => t.id === activeTabId);
         tab.url = url;
         tab.element.textContent = url;
-        loadProxy(url);
+        switchTab(tab.id);
     } else {
         createTab(url);
     }
+});
+
+// Enter key in input
+urlInput.addEventListener("keypress", e => {
+    if (e.key === "Enter") goBtn.click();
 });
 
 // Start with one tab
