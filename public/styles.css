@@ -1,52 +1,55 @@
-/* General body */
+/* Base */
 body {
     margin: 0;
-    background: #1a0828;
     font-family: "Inter", sans-serif;
+    background: #0f0c18;
     color: #fff;
+    overflow: hidden;
 }
 
 /* Topbar */
 #topbar {
     display: flex;
     align-items: center;
-    padding: 8px 16px;
-    background: rgba(60, 0, 100, 0.55);
+    padding: 10px 16px;
+    background: rgba(30, 10, 50, 0.65);
     backdrop-filter: blur(12px);
-    gap: 8px;
+    gap: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
 
 /* URL input */
 #urlInput {
     flex: 1;
-    padding: 8px 12px;
-    border-radius: 12px;
+    padding: 10px 14px;
+    border-radius: 20px;
     border: 1px solid #a460ff;
-    background: #1a0828;
+    background: rgba(20,10,40,0.8);
     color: #fff;
     outline: none;
-    transition: 0.2s all;
+    transition: 0.3s all;
 }
 
 #urlInput:focus {
-    box-shadow: 0 0 10px #a460ff;
+    box-shadow: 0 0 12px #a460ff;
     border-color: #a460ff;
 }
 
-/* GO button */
-#goBtn {
-    padding: 8px 16px;
-    border-radius: 12px;
+/* Buttons */
+button {
+    padding: 8px 18px;
+    border-radius: 20px;
     border: none;
     background: #a460ff;
     color: #fff;
+    font-weight: 600;
     cursor: pointer;
     transition: 0.2s all;
 }
 
-#goBtn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 10px #a460ff;
+button:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 12px #a460ff;
 }
 
 /* Tabs container */
@@ -55,32 +58,37 @@ body {
     gap: 6px;
     padding: 6px 16px;
     overflow-x: auto;
+    background: rgba(20,10,40,0.5);
+    backdrop-filter: blur(10px);
 }
 
 /* Individual tab */
 .tab {
-    padding: 6px 16px;
-    border-radius: 12px;
-    background: #2a1a40;
+    padding: 6px 18px;
+    border-radius: 30px;
+    background: rgba(40,20,70,0.6);
     cursor: pointer;
-    transition: 0.2s all;
+    transition: 0.3s all;
     white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    font-weight: 500;
 }
 
 .tab.active {
     background: #a460ff;
     color: #fff;
-    box-shadow: 0 0 10px #a460ff;
+    box-shadow: 0 0 15px #a460ff;
 }
 
 .tab:hover {
     transform: scale(1.05);
 }
 
-/* Iframe / proxy view */
+/* Proxy iframe */
 #frame {
     width: 100%;
     height: calc(100vh - 110px); /* topbar + tabs */
     border: none;
-    background: #000;
+    background: #0f0c18;
+    transition: opacity 0.3s ease;
 }
