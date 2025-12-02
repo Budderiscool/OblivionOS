@@ -1,0 +1,14 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0c0c0c; font-family: Arial, sans-serif; color: #fff; overflow: hidden; }
+.window { position: absolute; top: 60px; left: 60px; width: 900px; height: 550px; background: #161616; border: 2px solid #333; border-radius: 8px; display: flex; flex-direction: column; resize: both; overflow: hidden; }
+.titlebar { height: 40px; background: #202020; border-bottom: 2px solid #333; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; cursor: move; }
+.tabs { display: flex; background: #141414; border-bottom: 2px solid #222; overflow-x: auto; }
+.tab { padding: 8px 14px; background: #222; border-right: 1px solid #333; cursor: pointer; white-space: nowrap; }
+.tab.active { background: #333; }
+.newtab { padding: 8px 14px; background: #1f1f1f; cursor: pointer; }
+#bookmarkBar { display: flex; gap: 10px; padding: 6px; background: #141414; border-bottom: 2px solid #222; overflow-x: auto; }
+#bookmarkBar div { padding: 6px 12px; background: #222; border-radius: 5px; cursor: pointer; }
+.toolbar { background: #111; padding: 8px; display: flex; gap: 8px; border-bottom: 2px solid #222; }
+.toolbar input { flex: 1; background: #222; color: #fff; padding: 8px; border: none; border-radius: 6px; }
+.toolbar button { background: #333; border: none; padding: 8px 12px; border-radius: 6px; color: #eee; cursor: pointer; }
+iframe { flex: 1; width: 100%; border: none; background: #000; }
