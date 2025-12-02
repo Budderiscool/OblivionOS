@@ -1,67 +1,108 @@
-// References
-const tabsContainer = document.getElementById("tabsContainer");
-const urlInput = document.getElementById("urlInput");
-const goBtn = document.getElementById("goBtn");
-const frame = document.getElementById("frame");
-
-// Tabs data
+let currentTab = null;
 let tabs = [];
-let activeTabId = null;
+let useProxy = false;
+
+// Replace with your Vercel project proxy URL
+const proxyURL = "https://oblivion-os.vercel.app/api/proxy?url=";
 
 // Create a new tab
-function createTab(url = "https://example.com") {
-    const tabId = Date.now().toString();
-    const tabEl = document.createElement("div");
-    tabEl.classList.add("tab");
-    tabEl.textContent = url;
-    tabEl.dataset.id = tabId;
-    tabsContainer.appendChild(tabEl);
+function newTab(url = "https://example.com") {
+  const id = Date.now();
+  const tab = { id, url, title: "Tab" };
+  tabs.push(tab);
 
-    tabEl.addEventListener("click", () => switchTab(tabId));
+  const tabDiv = document.createElement("div");
+  tabDiv.className = "tab";
+  tabDiv.textContent = tab.title;
+  tabDiv.dataset.id = id;
+  tabDiv.onclick = () => switchTab(id);
 
-    const tab = { id: tabId, url, element: tabEl };
-    tabs.push(tab);
-    switchTab(tabId);
+  // Insert before the new tab button
+  const newTabBtn = document.querySelector(".tab.newtab");
+  newTabBtn.parentNode.insertBefore(tabDiv, newTabBtn);
+
+  switchTab(id);
 }
 
-// Switch active tab
-function switchTab(tabId) {
-    if (activeTabId === tabId) return;
-    activeTabId = tabId;
+// Switch to a tab by ID
+function switchTab(id) {
+  currentTab = tabs.find(t => t.id === id);
+  if (!currentTab) return;
 
-    tabs.forEach(t => t.element.classList.remove("active"));
-    const tab = tabs.find(t => t.id === tabId);
-    if (!tab) return;
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  const activeTab = document.querySelector(`.tab[data-id='${id}']`);
+  if (activeTab) activeTab.classList.add("active");
 
-    tab.element.classList.add("active");
-
-    // Smooth fade
-    frame.style.opacity = 0;
-    setTimeout(() => {
-        frame.src = `/proxy?url=${encodeURIComponent(tab.url)}`;
-        frame.style.opacity = 1;
-    }, 150);
+  document.getElementById("url").value = currentTab.url;
+  load(currentTab.url);
 }
 
-// Go button
-goBtn.addEventListener("click", () => {
-    const url = urlInput.value.trim();
-    if (!url) return;
+// Load a URL into the iframe
+function load(url) {
+  const frame = document.getElementById("view");
+  frame.src = useProxy ? proxyURL + encodeURIComponent(url) : url;
 
-    if (activeTabId) {
-        const tab = tabs.find(t => t.id === activeTabId);
-        tab.url = url;
-        tab.element.textContent = url;
-        switchTab(tab.id);
-    } else {
-        createTab(url);
+  // Update tab title after load
+  frame.onload = () => {
+    if (currentTab) {
+      currentTab.title = frame.contentDocument?.title || url;
+      const tabDiv = document.querySelector(`.tab[data-id='${currentTab.id}']`);
+      if (tabDiv) tabDiv.textContent = currentTab.title || "Tab";
     }
-});
+  };
+}
 
-// Enter key in input
-urlInput.addEventListener("keypress", e => {
-    if (e.key === "Enter") goBtn.click();
-});
+// Navigate using the Go button or Enter key
+function go() {
+  if (!currentTab) return;
+  let u = document.getElementById("url").value.trim();
+  if (!u.startsWith("http")) u = "https://" + u;
+  currentTab.url = u;
+  load(u);
+}
 
-// Start with one tab
-createTab("https://example.com");
+// Save a bookmark
+function saveBookmark() {
+  const bar = document.getElementById("bookmarkBar");
+  const url = document.getElementById("url").value.trim();
+  if (!url) return;
+
+  const b = document.createElement("div");
+  b.textContent = url;
+  b.title = url; // tooltip
+  b.onclick = () => {
+    document.getElementById("url").value = url;
+    go();
+  };
+  bar.appendChild(b);
+}
+
+// Run JavaScript on the iframe page
+function runJS() {
+  const code = prompt("Enter JavaScript to run on this page:");
+  if (!code) return;
+
+  const frame = document.getElementById("view");
+  try {
+    frame.contentWindow.eval(code);
+  } catch (e) {
+    alert("Error running JS: " + e.message);
+  }
+}
+
+// Toggle proxy on/off
+function toggleProxy() {
+  useProxy = !useProxy;
+  if (currentTab) load(currentTab.url);
+}
+
+// Initialize with a default tab
+window.onload = () => {
+  newTab("https://example.com");
+
+  // Trigger Go when pressing Enter in URL input
+  const urlInput = document.getElementById("url");
+  urlInput.addEventListener("keypress", e => {
+    if (e.key === "Enter") go();
+  });
+};
