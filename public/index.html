@@ -3,35 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OblivionOS</title>
+<title>OblivionOS Browser</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
 <div id="browser" class="window">
+
+  <!-- Titlebar -->
   <div class="titlebar">
     <span>OblivionOS</span>
     <div class="window-controls">
-      <button onclick="closeWindow()">✕</button>
-      <button onclick="minimizeWindow()">—</button>
-      <button onclick="maximizeWindow()">▢</button>
+      <button onclick="browser.remove()" title="Close Window">✕</button>
     </div>
   </div>
 
-  <div class="tabs" id="tabs"></div>
-  <div class="tab newtab" onclick="newTab()">+</div>
-
-  <div id="bookmarkBar"></div>
-
-  <div class="toolbar">
-    <input id="url" placeholder="Enter URL here...">
-    <button class="btn" onclick="go()">Go</button>
-    <button class="btn" onclick="saveBookmark()">☆</button>
-    <button class="btn" onclick="runJS()">JS</button>
-    <button class="btn" onclick="toggleProxy()">Proxy</button>
+  <!-- Tabs container -->
+  <div class="tabs" id="tabs">
+    <!-- New tab button inside tabs for consistency -->
+    <div class="tab newtab" onclick="newTab()" title="New Tab">+</div>
   </div>
 
-  <iframe id="view"></iframe>
+  <!-- Bookmark bar -->
+  <div id="bookmarkBar"></div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input id="url" placeholder="Enter a URL..." title="Type a URL and press Enter or Go">
+    <button class="btn" onclick="go()" title="Go to URL">Go</button>
+    <button class="btn" onclick="saveBookmark()" title="Save Bookmark">☆</button>
+    <button class="btn" onclick="runJS()" title="Run JavaScript in Page">JS</button>
+    <button class="btn" onclick="toggleProxy()" title="Toggle Proxy">Proxy</button>
+  </div>
+
+  <!-- Iframe for browsing -->
+  <iframe id="view" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+
 </div>
 
 <script src="browser.js"></script>
