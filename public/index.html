@@ -3,24 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OblivionOS Browser</title>
+<title>OblivionOS</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
 <div id="browser" class="window">
-  <div class="titlebar"><span>OblivionOS</span><button onclick="browser.remove()">✕</button></div>
+  <div class="titlebar">
+    <span>OblivionOS</span>
+    <div class="window-controls">
+      <button onclick="closeWindow()">✕</button>
+      <button onclick="minimizeWindow()">—</button>
+      <button onclick="maximizeWindow()">▢</button>
+    </div>
+  </div>
+
   <div class="tabs" id="tabs"></div>
   <div class="tab newtab" onclick="newTab()">+</div>
+
   <div id="bookmarkBar"></div>
+
   <div class="toolbar">
-    <input id="url" placeholder="https://...">
-    <button onclick="go()">Go</button>
-    <button onclick="saveBookmark()">☆</button>
-    <button onclick="runJS()">JS</button>
-    <button onclick="toggleProxy()">Proxy</button>
+    <input id="url" placeholder="Enter URL here...">
+    <button class="btn" onclick="go()">Go</button>
+    <button class="btn" onclick="saveBookmark()">☆</button>
+    <button class="btn" onclick="runJS()">JS</button>
+    <button class="btn" onclick="toggleProxy()">Proxy</button>
   </div>
+
   <iframe id="view"></iframe>
 </div>
+
 <script src="browser.js"></script>
 </body>
 </html>
