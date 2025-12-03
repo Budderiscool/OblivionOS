@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OblivionOS — Proxy Browser</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="chrome">
+      <div class="left-controls">
+        <button id="backBtn" class="btn round" title="Back" disabled>&larr;</button>
+        <button id="forwardBtn" class="btn round" title="Forward" disabled>&rarr;</button>
+      </div>
+
+      <div class="address-container">
+        <div class="favicon" id="favicon">🪄</div>
+        <input id="address" class="address" type="text" placeholder="Enter URL (https://...)" spellcheck="false" />
+        <button id="goBtn" class="btn go">Go</button>
+        <button id="reloadBtn" class="btn" title="Reload">⟳</button>
+      </div>
+
+      <div class="right-controls">
+        <label class="toggle">
+          <input id="cloakToggle" type="checkbox" checked>
+          <span class="slider">Cloak</span>
+        </label>
+        <button id="openNew" class="btn" title="Open in new tab (real)">↗</button>
+      </div>
+    </header>
+
+    <main class="viewer-wrap">
+      <div id="loader" class="loader hidden">
+        <div class="spinner"></div>
+        <div class="loader-text">loading…</div>
+      </div>
+
+      <iframe id="viewer" src="about:blank" sandbox="allow-same-origin allow-forms allow-scripts allow-popups"></iframe>
+    </main>
+
+    <footer class="footer">
+      <div>OblivionOS Proxy — purple mode</div>
+      <div id="status">idle</div>
+    </footer>
+  </div>
+
+  <script src="browser.js"></script>
+</body>
+</html>
