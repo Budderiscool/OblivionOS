@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>OblivionOS — Proxy Browser</title>
   <link rel="stylesheet" href="styles.css">
+  <link id="site-favicon" rel="icon" href="data:," />
 </head>
 <body>
   <div class="app">
@@ -26,9 +27,27 @@
           <input id="cloakToggle" type="checkbox" checked>
           <span class="slider">Cloak</span>
         </label>
+
+        <select id="cloakPreset" class="cloak-select" title="Cloak Preset">
+          <option value="blank">Blank</option>
+          <option value="calculator">Calculator</option>
+          <option value="classroom">Classroom</option>
+          <option value="404">404</option>
+        </select>
+
+        <button id="panicBtn" class="btn" title="Toggle Cloak (Shift+Q)">⛑</button>
         <button id="openNew" class="btn" title="Open in new tab (real)">↗</button>
       </div>
     </header>
+
+    <nav class="auth-row">
+      <div id="authStatus">Not signed in</div>
+      <div class="auth-buttons">
+        <button id="showSignup" class="btn">Sign up</button>
+        <button id="showLogin" class="btn">Login</button>
+        <button id="doLogout" class="btn hidden">Logout</button>
+      </div>
+    </nav>
 
     <main class="viewer-wrap">
       <div id="loader" class="loader hidden">
@@ -37,12 +56,35 @@
       </div>
 
       <iframe id="viewer" src="about:blank" sandbox="allow-same-origin allow-forms allow-scripts allow-popups"></iframe>
+
+      <div id="cloakOverlay" class="cloak-overlay hidden" aria-hidden="true">
+        <div id="cloakContent" class="cloak-content"></div>
+        <div class="cloak-footer">
+          <small id="cloakLabel">Cloaked — press Shift+Q to restore</small>
+        </div>
+      </div>
     </main>
 
     <footer class="footer">
-      <div>OblivionOS Proxy — purple mode</div>
+      <div>OblivionOS Proxy — mobile friendly</div>
       <div id="status">idle</div>
     </footer>
+  </div>
+
+  <!-- Simple signup/login modals (mobile friendly) -->
+  <div id="modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-card">
+      <h3 id="modalTitle">Sign up</h3>
+      <div class="modal-body">
+        <input id="m_username" placeholder="username" />
+        <input id="m_password" placeholder="password" type="password" />
+        <div class="modal-actions">
+          <button id="modalSubmit" class="btn go">Submit</button>
+          <button id="modalCancel" class="btn">Cancel</button>
+        </div>
+        <div id="modalMessage" class="modal-message"></div>
+      </div>
+    </div>
   </div>
 
   <script src="browser.js"></script>
