@@ -1,215 +1,264 @@
 // api/proxy.js
-import fetch from "node-fetch";
+import fetch from 'node-fetch';
+import jwt from 'jsonwebtoken';
+import { parse as parseCookie } from 'cookie';
 
-/**
- * Simple Vercel serverless proxy with HTML injection for cloaking.
- * Security note: This proxies content and injects scripts — use only for permitted targets.
- */
+const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret';
+
+// USERS store exists server-side from signup/login modules
+const USERS = global.__OBLIVION_USERS ||= {};
 
 function isValidUrl(value) {
   try {
     const u = new URL(value);
-    return u.protocol === "http:" || u.protocol === "https:";
+    return u.protocol === 'http:' || u.protocol === 'https:';
   } catch {
     return false;
   }
 }
 
-export default async function handler(req, res) {
-  const target = req.query.url;
-  if (!target) return res.status(400).json({ error: "Missing url parameter" });
+function escapeHtml(s = '') {
+  return String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-  // Basic validation
-  if (!isValidUrl(target)) {
-    return res.status(400).json({ error: "Invalid url (must start with http:// or https://)" });
+// Allow only authenticated users
+function requireAuth(req) {
+  const cookies = req.headers.cookie ? parseCookie(req.headers.cookie || '') : {};
+  const token = cookies['oblivion_token'] || null;
+  if (!token) return null;
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+export default async function handler(req, res) {
+  const auth = requireAuth(req);
+  if (!auth) {
+    return res.status(401).json({ error: 'unauthenticated' });
   }
 
+  const target = req.query.url;
+  if (!target) return res.status(400).json({ error: 'Missing url parameter' });
+  if (!isValidUrl(target)) return res.status(400).json({ error: 'Invalid url' });
+
   try {
-    // Fetch the resource
+    // Fetch remote
     const remoteRes = await fetch(target, {
       headers: {
-        // Identify as a generic user agent to reduce some blocking
-        "user-agent": req.headers["user-agent"] || "Mozilla/5.0 (OblivionOS Proxy)"
+        'user-agent': req.headers['user-agent'] || 'Mozilla/5.0 (OblivionOS Proxy)',
+        // don't forward client cookies
       },
-      redirect: "follow",
-      // don't send cookies from user to remote
+      redirect: 'follow'
     });
 
-    // If remote responded with non-OK but with content, still forward it
-    const contentType = remoteRes.headers.get("content-type") || "";
+    const contentType = (remoteRes.headers.get('content-type') || '').toLowerCase();
 
-    // Forward non-html resources as bytes
-    if (!contentType.includes("text/html")) {
+    // binary or non-html -> stream back
+    if (!contentType.includes('text/html')) {
       const buffer = await remoteRes.arrayBuffer();
-      // Copy content-type and other essential headers
-      res.setHeader("Content-Type", contentType);
-      // Allow CORS so iframe / fetch can load resources
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("X-OblivionOS", "cloaked-proxy");
-      // Some servers send content-disposition etc; forward filename if present
-      const cd = remoteRes.headers.get("content-disposition");
-      if (cd) res.setHeader("Content-Disposition", cd);
+      // forward content-type
+      res.setHeader('Content-Type', contentType || 'application/octet-stream');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('X-OblivionOS', 'cloaked-proxy');
+      // forward status and data
       return res.status(remoteRes.status).send(Buffer.from(buffer));
     }
 
-    // For HTML, we will inject a base tag and a rewrite script for cloaking.
+    // text/html -> modify
     let body = await remoteRes.text();
 
-    // Create injection pieces
-    const baseTag = `<base href="${escapeHtml(target)}">`;
+    // Attempt to rewrite inline CSS url(...) and meta refreshes and srcset attributes before injecting script
+    // 1) Rewrite url(...) occurrences in inline style and style tags to absolute and proxy them.
+    // We'll replace url(<whatever>) with url(/api/proxy?url=ENCODED)
+    // Caution: regex approach is heuristic but improves many cases.
+    body = body.replace(/url\(([^)]+)\)/gi, (m, p1) => {
+      // strip quotes
+      let raw = p1.trim().replace(/^["']|["']$/g, '');
+      try {
+        const abs = new URL(raw, target).href;
+        return `url('/api/proxy?url=${encodeURIComponent(abs)}')`;
+      } catch (e) {
+        return m;
+      }
+    });
 
-    // Injection script: rewrites links and resources to route through /api/proxy?url=...
-    // It also intercepts form submits and link clicks to keep browsing within the proxy.
+    // 2) Rewrite meta refresh redirect tags
+    body = body.replace(/<meta\s+http-equiv=["']refresh["'][^>]*content=["']?([^"'>]+)["']?[^>]*>/gi, (m, content) => {
+      // content like "5;url=/foo"
+      try {
+        const parts = content.split(';').map(s => s.trim());
+        const wait = parts[0];
+        let urlPart = parts.slice(1).join(';') || '';
+        const match = urlPart.match(/url=(.*)/i);
+        if (match) {
+          const raw = match[1].replace(/^["']|["']$/g, '');
+          const abs = new URL(raw, target).href;
+          const proxied = `/api/proxy?url=${encodeURIComponent(abs)}`;
+          return `<meta http-equiv="refresh" content="${escapeHtml(wait)};url=${escapeHtml(proxied)}">`;
+        }
+        return m;
+      } catch {
+        return m;
+      }
+    });
+
+    // 3) Inject base tag into head so relative URLs resolve
+    const baseTag = `<base href="${escapeHtml(target)}">`;
+    if (/<head[^>]*>/i.test(body)) {
+      body = body.replace(/<head([^>]*)>/i, `<head$1>\n${baseTag}\n`);
+    } else {
+      body = '<head>' + baseTag + '</head>' + body;
+    }
+
+    // 4) Injection script to rewrite attributes dynamically (adds srcset + lazy attrs handling)
     const injectionScript = `
 <script>
 (function(){
-  // Utility: resolve URL relative to base
-  function resolveUrl(url){
-    try { return new URL(url, document.baseURI).href; } catch { return url; }
-  }
-
-  function proxyizeUrl(url){
-    if (!url) return url;
-    // don't proxy data:, blob:, about:, javascript:
-    if (/^(data|blob|about|javascript):/i.test(url)) return url;
-    // If already pointing to our api-proxy, leave it
+  function resolveUrl(url){ try { return new URL(url, document.baseURI).href; } catch { return url; } }
+  function isProxiable(u){
+    if (!u) return false;
     try {
-      const parsed = new URL(url, document.baseURI);
-      if (parsed.pathname && parsed.pathname.startsWith('/api/proxy')) return url;
-    } catch {}
-    return '/api/proxy?url=' + encodeURIComponent(resolveUrl(url));
+      const parsed = new URL(u, document.baseURI);
+      if (/^(data|blob|about|javascript):/i.test(parsed.protocol)) return false;
+      return true;
+    } catch { return false; }
+  }
+  function proxyize(u){
+    if (!u) return u;
+    if (!isProxiable(u)) return u;
+    const abs = resolveUrl(u);
+    // already proxied?
+    if (abs.includes('/api/proxy?url=' + encodeURIComponent(abs))) return u;
+    return '/api/proxy?url=' + encodeURIComponent(abs);
   }
 
-  function rewriteAttributes(){
-    // Elements to rewrite: img, script, link (rel=stylesheet), a, iframe, source, video, audio, embed, object, form
-    const attrs = [
-      {sel:'img', attr:'src'},
-      {sel:'script', attr:'src'},
-      {sel:'link[rel~="stylesheet"]', attr:'href'},
-      {sel:'a', attr:'href'},
-      {sel:'iframe', attr:'src'},
-      {sel:'source', attr:'src'},
-      {sel:'video', attr:'src'},
-      {sel:'audio', attr:'src'},
-      {sel:'embed', attr:'src'},
-      {sel:'object', attr:'data'},
-      {sel:'form', attr:'action'}
-    ];
-
-    for (const rule of attrs){
-      const nodes = Array.from(document.querySelectorAll(rule.sel));
-      for (const node of nodes){
-        const original = node.getAttribute(rule.attr);
-        if (!original) continue;
-        // Keep anchors that are anchors (#...) local
-        if (rule.sel === 'a' && original.startsWith('#')) continue;
-        try {
-          const proxied = proxyizeUrl(original);
-          node.setAttribute(rule.attr, proxied);
-          // For anchors: add target to keep inside iframe
-          if (rule.sel === 'a') node.setAttribute('target', '_self');
-        } catch(e){}
-      }
+  function rewriteNode(node, attr){
+    const orig = node.getAttribute(attr);
+    if (!orig) return;
+    // handle srcset specially
+    if (attr === 'srcset') {
+      try {
+        const parts = orig.split(',');
+        const mapped = parts.map(p=>{
+          const seg = p.trim();
+          const [url, descriptor] = seg.split(/\s+/, 2);
+          const prox = proxyize(url);
+          return descriptor ? prox + ' ' + descriptor : prox;
+        }).join(', ');
+        node.setAttribute(attr, mapped);
+        return;
+      } catch {}
     }
+
+    // regular attributes (src, href, action, data, poster, srcdoc not handled)
+    const prox = proxyize(orig);
+    if (prox !== orig) node.setAttribute(attr, prox);
   }
 
-  // Intercept clicks on anchors that might be dynamically added later
+  function rewriteAll(){
+    const rules = [
+      {sel:'img', attrs:['src','srcset','data-src','data-srcset']},
+      {sel:'script', attrs:['src']},
+      {sel:'link[rel~="stylesheet"]', attrs:['href']},
+      {sel:'a', attrs:['href']},
+      {sel:'iframe', attrs:['src']},
+      {sel:'source', attrs:['src','srcset']},
+      {sel:'video', attrs:['src','poster']},
+      {sel:'audio', attrs:['src']},
+      {sel:'embed', attrs:['src']},
+      {sel:'object', attrs:['data']},
+      {sel:'form', attrs:['action']}
+    ];
+    rules.forEach(r=>{
+      Array.from(document.querySelectorAll(r.sel)).forEach(node=>{
+        r.attrs.forEach(attr => rewriteNode(node, attr));
+      });
+    });
+  }
+
+  // rewrite inline style attributes that contain url(...) (heuristic)
+  function rewriteInlineStyles(){
+    Array.from(document.querySelectorAll('[style]')).forEach(el=>{
+      const s = el.getAttribute('style');
+      if (!s) return;
+      const ns = s.replace(/url\$begin:math:text$\(\[\^\)\]\+\)\\$end:math:text$/gi, function(m, p1){
+        const raw = p1.replace(/^["']|["']$/g,'').trim();
+        try {
+          const abs = new URL(raw, document.baseURI).href;
+          return "url('/api/proxy?url=" + encodeURIComponent(abs) + "')";
+        } catch(e){ return m; }
+      });
+      if (ns !== s) el.setAttribute('style', ns);
+    });
+  }
+
+  // intercept clicks so that navigation stays proxied
   document.addEventListener('click', function(e){
     const a = e.target.closest && e.target.closest('a');
     if (!a) return;
     const href = a.getAttribute('href');
     if (!href) return;
-    // allow same-page anchors
     if (href.startsWith('#')) return;
-    // If link already proxied, let it continue
     if (href.includes('/api/proxy')) return;
     e.preventDefault();
     const resolved = resolveUrl(href);
     window.location.href = '/api/proxy?url=' + encodeURIComponent(resolved);
   }, true);
 
-  // Intercept form submits to route action through proxy
+  // intercept form submits
   document.addEventListener('submit', function(e){
     const form = e.target;
     if (!form) return;
-    const action = form.getAttribute('action') || document.baseURI;
     const method = (form.method || 'GET').toUpperCase();
-    // Build absolute action URL
+    const action = form.getAttribute('action') || document.baseURI;
     const abs = resolveUrl(action);
-    // For safety, convert GET forms to proxied URL with query string
     if (method === 'GET') {
       const params = new URLSearchParams(new FormData(form)).toString();
-      const target = abs + (abs.includes('?') ? '&' : '?') + params;
       e.preventDefault();
-      window.location.href = '/api/proxy?url=' + encodeURIComponent(target);
+      window.location.href = '/api/proxy?url=' + encodeURIComponent(abs + (abs.includes('?') ? '&' : '?') + params);
     } else {
-      // For POST and others, perform a fetch and replace document contents with response
       e.preventDefault();
-      const formData = new FormData(form);
-      fetch('/api/proxy?url=' + encodeURIComponent(abs), {
-        method: 'POST',
-        body: formData
-      }).then(r => r.text()).then(html => {
-        document.open();
-        document.write(html);
-        document.close();
-      }).catch(console.error);
+      // POST via fetch and replace document
+      fetch('/api/proxy?url=' + encodeURIComponent(abs), { method: 'POST', body: new FormData(form) })
+        .then(r => r.text()).then(html => {
+          document.open(); document.write(html); document.close();
+        }).catch(console.error);
     }
   }, true);
 
-  // Run at load and after DOM modifications
-  function runRewrite(){
-    try { rewriteAttributes(); } catch(e){ console.error('rewriteAttributes', e); }
-  }
+  // Observe changes and rewrite
+  const mo = new MutationObserver(function(){ try { rewriteAll(); rewriteInlineStyles(); } catch(e){} });
+  mo.observe(document.documentElement || document, { childList:true, subtree:true, attributes:true });
 
-  // observe DOM additions to rewrite dynamically added content
-  const mo = new MutationObserver(runRewrite);
-  mo.observe(document.documentElement || document, {childList: true, subtree: true});
+  // initial rewrite: run on DOMContentLoaded or immediately
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ()=>{ rewriteAll(); rewriteInlineStyles(); });
+  else { rewriteAll(); rewriteInlineStyles(); }
 
-  // initial rewrite
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', runRewrite);
-  } else {
-    runRewrite();
-  }
-
-  // expose function for external triggers
-  window.__oblivion_rewrite = runRewrite;
+  // expose for debugging
+  window.__oblivion_rewrite = function(){ rewriteAll(); rewriteInlineStyles(); };
 })();
 </script>
 `;
 
-    // Insert base tag if <head> exists, else create head
-    if (/<head[^>]*>/i.test(body)) {
-      body = body.replace(/<head([^>]*)>/i, `<head$1>\n${baseTag}\n`);
-    } else {
-      // prepend head
-      body = '<head>' + baseTag + '</head>' + body;
-    }
-
-    // Inject our script just before </body> (or at end if no body)
+    // Inject script before </body>
     if (/<\/body>/i.test(body)) {
       body = body.replace(/<\/body>/i, injectionScript + '\n</body>');
     } else {
       body = body + injectionScript;
     }
 
-    // Return modified html
-    // Remove or override Content-Security-Policy to avoid blocking our injected script
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("X-OblivionOS", "cloaked-proxy");
-    // Don't forward CSP to client
-    // Copy content-type
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-
+    // Return modified HTML with safe headers
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('X-OblivionOS', 'cloaked-proxy');
+    // remove CSP to allow our script (we don't forward remote CSP header)
     return res.status(remoteRes.status).send(body);
-  } catch (err) {
-    console.error("Proxy error:", err);
-    return res.status(500).json({ error: "Proxy fetch failed", details: String(err) });
-  }
-}
 
-// small helper to escape double quotes in base href
-function escapeHtml(s){
-  return s.replace(/"/g, '&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  } catch (err) {
+    console.error('proxy error', err);
+    return res.status(500).json({ error: 'fetch failed' });
+  }
 }
